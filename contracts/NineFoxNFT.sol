@@ -12,6 +12,39 @@ contract NineFoxNFT is ERC721URIStorage, Ownable, IERC721Receiver {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
 
+    struct StakedToken {
+        address owner;
+        uint256 timeStaked;
+    }
+
+    // Mapping from tokenId to the owner's address
+    mapping(uint256 => StakedToken) private _stakedTokens;
+
+    event FoxStaked(address staker, uint256 tokenId);
+    event FoxUnstaked(address owner, uint256 tokenId);
+
+    modifier onlyFoxOwnerOrApproved(uint256 tokenId) {
+        address owner = ERC721.ownerOf(tokenId);
+        address operator = ERC721.getApproved(tokenId);
+        require(
+            msg.sender == owner || msg.sender == operator,
+            "9Fox: Caller is not owner nor approved to this Fox"
+        );
+        _;
+    }
+
+    modifier notAlreadyStaked(uint256 tokenId) {
+        address owner = _stakedTokens[tokenId].owner;
+        require(owner == address(0), "9Fox: Fox is already staked");
+        _;
+    }
+
+    modifier staked(uint256 tokenId) {
+        address owner = _stakedTokens[tokenId].owner;
+        require(owner != address(0), "9Fox: Fox is not being staked");
+        _;
+    }
+
     constructor() ERC721("NineFoxTails", "NFT") {}
 
     function mintNFT(address recipient, string memory tokenURI)
@@ -28,10 +61,52 @@ contract NineFoxNFT is ERC721URIStorage, Ownable, IERC721Receiver {
         return newItemId;
     }
 
+    function getToken() public view returns (uint256) {
+        return _tokenIds.current();
+    }
+
+    function stake(uint256 tokenId)
+        external
+        notAlreadyStaked(tokenId)
+        onlyFoxOwnerOrApproved(tokenId)
+    {
+        ERC721.safeTransferFrom(msg.sender, address(this), tokenId);
+    }
+
+    function unstake(uint256 tokenId) external onlyFoxOwnerOrApproved(tokenId) {
+        address owner = _stakedTokens[tokenId].owner;
+        require(owner != address(0), "9Fox: This Fox is not staked");
+
+        ERC721.safeTransferFrom(address(this), owner, tokenId);
+
+        _stakedTokens[tokenId].owner = address(0);
+
+        emit FoxUnstaked(owner, tokenId);
+    }
+
+    function calculateStakeRewards(uint256 tokenId)
+        external
+        view
+        staked(tokenId)
+        returns (uint256)
+    {
+        // TODO: only let NFT owner check rewards
+        uint256 timeStaked = _stakedTokens[tokenId].timeStaked;
+        return (block.timestamp - timeStaked) / 1 days;
+    }
+
     function onERC721Received(
         address operator,
         address from,
         uint256 tokenId,
         bytes calldata data
-    ) external override returns (bytes4) {}
+    ) external override returns (bytes4) {
+        // Can someone call this method and set themselves to the owner?
+        _stakedTokens[tokenId] = StakedToken(from, block.timestamp);
+        ERC721.approve(from, tokenId);
+
+        emit FoxStaked(from, tokenId);
+
+        return NineFoxNFT.onERC721Received.selector;
+    }
 }
