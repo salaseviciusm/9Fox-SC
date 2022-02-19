@@ -17,8 +17,17 @@ contract NineFoxNFT is ERC721URIStorage, Ownable, IERC721Receiver {
         uint256 timeStaked;
     }
 
+    struct Attributes {
+        uint32 health;
+        uint32 strength;
+        uint32 defense;
+    }
+
     // Mapping from tokenId to the owner's address
     mapping(uint256 => StakedToken) private _stakedTokens;
+
+    // Mapping from tokenID to the token's attributes
+    mapping(uint256 => Attributes) private _tokenAttributes;
 
     event FoxStaked(address staker, uint256 tokenId);
     event FoxUnstaked(address owner, uint256 tokenId);
@@ -59,6 +68,32 @@ contract NineFoxNFT is ERC721URIStorage, Ownable, IERC721Receiver {
         _setTokenURI(newItemId, tokenURI);
 
         return newItemId;
+    }
+
+    function mintNFT(
+        address recipient,
+        string memory tokenURI,
+        Attributes memory attributes
+    ) public onlyOwner returns (uint256) {
+        uint256 tokenID = mintNFT(recipient, tokenURI);
+
+        _tokenAttributes[tokenID] = attributes;
+        return tokenID;
+    }
+
+    function getAttributes(uint256 tokenID)
+        external
+        view
+        returns (Attributes memory)
+    {
+        return _tokenAttributes[tokenID];
+    }
+
+    function setAttributes(uint256 tokenID, Attributes memory attributes)
+        external
+        onlyOwner
+    {
+        _tokenAttributes[tokenID] = attributes;
     }
 
     function getToken() public view returns (uint256) {
