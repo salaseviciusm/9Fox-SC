@@ -14,7 +14,7 @@ describe("NineFoxNFT", function() {
 
     async function resetState() {
 
-        [addr1, addr2] = await ethers.getSigners();
+        [owner, addr1, addr2] = await ethers.getSigners();
 
         const Nft = await ethers.getContractFactory("NineFoxNFT");
         nft = await Nft.deploy();
@@ -22,7 +22,13 @@ describe("NineFoxNFT", function() {
     }
 
     async function mintNFT(address, tokenURI) {
-        const tx = await nft.connect(address).mintNFT(address.address, tokenURI, {
+        const tx = await nft.connect(owner)["mintNFT(address,string)"](address.address, tokenURI, {
+            gasLimit: 500_000,
+        });
+    }
+
+    async function mintNFTAttributes(address, tokenURI, attributes) {
+        const tx = await nft.connect(owner)["mintNFT(address,string,(uint32,uint32,uint32))"](address.address, tokenURI, attributes, {
             gasLimit: 500_000,
         });
     }
@@ -32,11 +38,17 @@ describe("NineFoxNFT", function() {
     }
 
     async function safeTransferFrom(from, to, tokenID) {
-        await nft["safeTransferFrom(address,address,uint256)"](from.address, to.address, tokenID);
+        await nft.connect(from)["safeTransferFrom(address,address,uint256)"](from.address, to.address, tokenID);
     }
 
     async function stakeFox(from, tokenID) {
         await nft.connect(from).stake(tokenID);
+    }
+
+    function checkAttributes(expected, actual) {
+        expect(actual['health']).to.equal(expected['health']);
+        expect(actual['strength']).to.equal(expected['strength']);
+        expect(actual['defense']).to.equal(expected['defense']);
     }
 
     it("Should allow deploying", async function () {
@@ -65,8 +77,33 @@ describe("NineFoxNFT", function() {
         // Mint some NFTs to make the node produce more blocks
         await mintNFT(addr1, tokenURI);
         await mintNFT(addr1, tokenURI);
-
+        
         const res = await nft.connect(addr2).calculateStakeRewards(1);
-        console.log(parseInt(res));
+        expect(parseInt(res)).to.equal(0);
+    });
+
+    it("Should allow checking of attributes", async function() {
+        const attributes = {
+            health: 20,
+            strength: 30,
+            defense: 40,
+        };
+        await mintNFTAttributes(addr1, tokenURI, attributes);
+
+        const attr = await nft.getAttributes(4);
+        checkAttributes(attributes, attr);
+    });
+
+    it("Should allow setting of attributes", async function() {
+        const attributes = {
+            health: 99,
+            strength: 40,
+            defense: 10
+        };
+
+        await nft.setAttributes(1, attributes);
+
+        const attr = await nft.getAttributes(1);
+        checkAttributes(attributes, attr);
     });
 });
