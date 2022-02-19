@@ -1,0 +1,19 @@
+
+{
+    "title": "Asset Metadata",
+    "type": "object",
+    "properties": {
+        "name": {
+            "type": "string",
+            "description": "BAYC"
+        },
+        "description": {
+            "type": "string",
+            "description": "Monke"
+        },
+        "image": {
+            "type": "string",
+            "description": "https://gateway.pinata.cloud/ipfs/QmaA5b7jpEAouKkgZALLJhnFxpR7oMzugsp1moXVqZLu17"
+        }
+    }
+}
